@@ -56,7 +56,7 @@ init(UserArgs) ->
 %% @spec (RequestLine, Headers) -> Response
 %% @end
 %%--------------------------------------------------------------------
-get(RequestLine, Headers) ->
+get(_RequestLine, Headers) ->
     Body = "<h2>Welcome to the gen_web_server</h2>"
            "<p>Docs can be found at erlware.org or by"
            " generating edocs on the app</p>",
@@ -70,9 +70,7 @@ delete(_RequestLine, _Headers) -> gen_web_server:http_reply(200).
 %% @spec (RequestLine, Headers, Body) -> Response
 %% @end
 %%--------------------------------------------------------------------
-put(RequestLine, Headers, Body) ->
-    gen_web_server:http_reply(200).
-
+put(_RequestLine, _Headers, _Body) -> gen_web_server:http_reply(200).
 trace(_RequestLine, _Headers, _Body) -> gen_web_server:http_reply(200).
 post(_RequestLine, _Headers, _Body) -> gen_web_server:http_reply(200).
 options(_RequestLine, _Headers, _Body) -> gen_web_server:http_reply(200).

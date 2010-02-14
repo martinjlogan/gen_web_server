@@ -1,3 +1,5 @@
+Generic web server behaviour. Makes it nice and easy to build REST based interfaces.
+
 To build run sinan
 to install run "sinan dist" and then "faxien ir"
 To run run <erlware-root>/bin/gen_web_server this will bind to port 8080
