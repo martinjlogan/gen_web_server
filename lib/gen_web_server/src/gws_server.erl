@@ -34,7 +34,6 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link(Callback, LSock, UserArgs) ->
-    error_logger:info_msg("gws_server:start_link/2~n"),
     gen_server:start_link(?MODULE, [Callback, LSock, UserArgs, self()], []).
 
 %%%===================================================================
@@ -53,7 +52,6 @@ start_link(Callback, LSock, UserArgs) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Callback, LSock, UserArgs, Parent]) ->
-    error_logger:info_msg("gws_server:init/1~n"),
     {ok, UserState} = Callback:init(UserArgs),
     {ok, #state{lsock = LSock, callback = Callback, user_state = UserState, parent = Parent}, 0}.
 
@@ -101,12 +99,9 @@ handle_cast(_Request, State) ->
 handle_info({tcp, _Socket, Packet}, #state{unparsed = Unparsed} = State) ->
     handle_packet(State#state{unparsed = list_to_binary([Unparsed, Packet])});
 handle_info({tcp_closed, _Socket}, State) ->
-    error_logger:info_msg("socket closed~n"),
     {stop, normal, State};
 handle_info(timeout, #state{lsock = LSock, parent = Parent} = State) ->
-    error_logger:info_msg("waiting to accept an incoming connection~n"),
     {ok, Socket} = gen_tcp:accept(LSock),
-    error_logger:info_msg("connection received on socket ~p~n", [Socket]),
     gws_connection_sup:start_child(Parent),
     inet:setopts(Socket,[{active,once}]),
     {noreply, State#state{socket = Socket}}.
@@ -140,7 +135,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 handle_packet(#state{request_line = <<>>, unparsed = Unparsed} = State) ->
-    error_logger:info_msg("gws_server:handle_packet request line packet ~p~n", [Unparsed]),
     case erlang:decode_packet(http, Unparsed, []) of
 	{more, _} ->
 	    inet:setopts(State#state.socket, [{active,once}]),
@@ -152,7 +146,6 @@ handle_packet(#state{request_line = <<>>, unparsed = Unparsed} = State) ->
 	    throw({bad_initial_request_line, Error})
     end;
 handle_packet(#state{headers = [], unparsed = Unparsed} = State) ->
-    error_logger:info_msg("gws_server:handle_info header packet ~p~n", [Unparsed]),
     case decode_header(Unparsed) of
 	{ok, NewHeaders, Rest} ->
 	    ContentLength = list_to_integer(header_value_search('Content-Length', NewHeaders, "0")),
@@ -172,7 +165,6 @@ handle_packet(#state{headers = [], unparsed = Unparsed} = State) ->
 	    {noreply, NewState}
     end;
 handle_packet(#state{unparsed = Unparsed, content_length = ContentLength} = State) ->
-    error_logger:info_msg("gws_server:handle_info body packet ~p~n", [Unparsed]),
     case ContentLength - byte_size(Unparsed) of
 	0 ->
 	    reply(State#state{body = Unparsed});

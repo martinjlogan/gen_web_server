@@ -31,8 +31,6 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link(Callback, Port, UserArgs) ->
-    error_logger:info_msg("gws_connection_sup:start_link/3 ~p ~p ~p~n",
-			  [Callback, Port, UserArgs]),
     {ok, Pid} = supervisor:start_link(?MODULE, [Callback, Port, UserArgs]),
     start_child(Pid),
     {ok, Pid}.
@@ -75,7 +73,7 @@ init([Callback, Port, UserArgs]) ->
     Shutdown = brutal_kill,
     Type = worker,
     
-    error_logger:info_msg("Start connection sup with ~p ~p ~p~n", [Port, Callback, UserArgs]),
+    error_logger:info_msg("Start connection supervisor with ~p ~p ~p~n", [Port, Callback, UserArgs]),
     {ok, LSock} = gen_tcp:listen(Port, [binary, {active, false}, {packet, raw}, {reuseaddr, true}]),
 
     WebSocket = {gws_server, {gws_server, start_link, [Callback, LSock, UserArgs]},

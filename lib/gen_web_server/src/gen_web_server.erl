@@ -60,10 +60,13 @@ http_reply(Code) ->
     http_reply(Code, [{"Content-Type", "text/html"}], "").
 
 format_headers([{Header, Value}|T]) ->
-    [Header, ": ", Value, "\r\n"|format_headers(T)];
+    [tos(Header), ": ", Value, "\r\n"|format_headers(T)];
 format_headers([]) ->
     [].
 
+tos(Val) when is_atom(Val) -> atom_to_list(Val);
+tos(Val)                   -> Val.
+    
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================

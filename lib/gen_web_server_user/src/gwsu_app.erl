@@ -34,7 +34,6 @@
 %% @end
 %%--------------------------------------------------------------------
 start(_StartType, _StartArgs) ->
-    io:format("starting the sup~n"),
     case gwsu_sup:start_link() of
 	{ok, Pid} ->
 	    {ok, Pid};

@@ -50,7 +50,6 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    io:format("starting the sup~n"),
     RestartStrategy = one_for_one,
     MaxRestarts = 1000,
     MaxSecondsBetweenRestarts = 3600,
