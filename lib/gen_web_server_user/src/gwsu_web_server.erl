@@ -16,15 +16,15 @@
 %% callbacks
 -export([
 	 init/1,
-	 head/2,
-	 get/2,
-	 delete/2,
-	 options/3,
-	 post/3,
-	 put/3,
-	 trace/3,
-	 connect/3,
-	 other_methods/3
+	 head/3,
+	 get/3,
+	 delete/3,
+	 options/4,
+	 post/4,
+	 put/4,
+	 trace/4,
+	 connect/4,
+	 other_methods/4
 	]).
 
 %%%===================================================================
@@ -56,32 +56,34 @@ init(UserArgs) ->
 %% @spec (RequestLine, Headers) -> Response
 %% @end
 %%--------------------------------------------------------------------
-get(_RequestLine, Headers) ->
+get(_RequestLine, Headers, _State) ->
     Body = "<h2>Welcome to the gen_web_server</h2>"
            "<p>Docs can be found at erlware.org or by"
            " generating edocs on the app</p>",
     gen_web_server:http_reply(200, Headers, Body).
 
-head(_RequestLine, _Headers) -> gen_web_server:http_reply(200).
-delete(_RequestLine, _Headers) -> gen_web_server:http_reply(200).
+head(_RequestLine, _Headers, _State) -> gen_web_server:http_reply(200).
+delete(_RequestLine, _Headers, _State) -> gen_web_server:http_reply(200).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @spec (RequestLine, Headers, Body, State) -> Response
+%% @end
+%%--------------------------------------------------------------------
+put(RequestLine, Headers, Body, _State) ->
+    error_logger:info_msg("request is ~p ~p ~p~n", [RequestLine, Headers, Body]),
+    gen_web_server:http_reply(200).
+trace(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
+post(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
+options(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
+connect(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
 
 %%--------------------------------------------------------------------
 %% @doc
 %% @spec (RequestLine, Headers, Body) -> Response
 %% @end
 %%--------------------------------------------------------------------
-put(_RequestLine, _Headers, _Body) -> gen_web_server:http_reply(200).
-trace(_RequestLine, _Headers, _Body) -> gen_web_server:http_reply(200).
-post(_RequestLine, _Headers, _Body) -> gen_web_server:http_reply(200).
-options(_RequestLine, _Headers, _Body) -> gen_web_server:http_reply(200).
-connect(_RequestLine, _Headers, _Body) -> gen_web_server:http_reply(200).
-
-%%--------------------------------------------------------------------
-%% @doc
-%% @spec (RequestLine, Headers, Body) -> Response
-%% @end
-%%--------------------------------------------------------------------
-other_methods(RequestLine, Headers, Body) ->
+other_methods(RequestLine, Headers, Body, _State) ->
     error_logger:info_msg("request is ~p ~p ~p~n", [RequestLine, Headers, Body]),
     gen_web_server:http_reply(200).
 
