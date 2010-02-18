@@ -27,6 +27,8 @@
 	 other_methods/4
 	]).
 
+-record(state, {document_root}).
+
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -37,7 +39,7 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link() ->
-    gen_web_server:start_link(?MODULE, 8080, []).
+    gen_web_server:start_link(?MODULE, 8080, "/tmp/repo/").
 
 %%%===================================================================
 %%% gen_web_server callbacks
@@ -48,8 +50,8 @@ start_link() ->
 %% @spec (UserArgs) -> void()
 %% @end
 %%--------------------------------------------------------------------
-init(UserArgs) ->
-    {ok, UserArgs}.
+init(DocumentRoot) ->
+    {ok, #state{document_root = DocumentRoot}}.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -83,6 +85,16 @@ connect(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200)
 %% @spec (RequestLine, Headers, Body) -> Response
 %% @end
 %%--------------------------------------------------------------------
+other_methods({http_request, "PROPFIND", {abs_path, AbsPath}, _}, Headers, _Body, State) ->
+    {value, {'Host', Host}} = lists:keysearch('Host', 1, Headers),
+    case gws_web_dav_util:propfind(State#state.document_root, AbsPath, Host, 1) of
+	error -> 
+	    gen_web_server:http_reply(404);
+	Resp -> 
+	    WebResp = gen_web_server:http_reply(207, Headers, Resp),
+	    error_logger:info_msg("response to propfind ~p~n", [WebResp]),
+	    WebResp
+    end;
 other_methods(RequestLine, Headers, Body, _State) ->
     error_logger:info_msg("request is ~p ~p ~p~n", [RequestLine, Headers, Body]),
     gen_web_server:http_reply(200).

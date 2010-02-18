@@ -5,8 +5,9 @@
    {vsn, "0.1.0"},
    {modules, [gen_web_server,
               gws_connection_sup,
+              gws_web_dav_util,
 	      gws_server]},
    {registered,[]},
-   {applications, [kernel, stdlib, sasl]},
+   {applications, [kernel, stdlib, sasl, inets]},
    {start_phases, []}]}.
 
