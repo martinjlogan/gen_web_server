@@ -72,12 +72,12 @@ delete(_RequestLine, _Headers, _State) -> gen_web_server:http_reply(200).
 %% @spec (RequestLine, Headers, Body, State) -> Response
 %% @end
 %%--------------------------------------------------------------------
-put(RequestLine, Headers, Body, _State) -> gen_web_server:http_reply(200).
+put(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
 trace(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
 post(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
 options(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
 connect(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
-other_methods(RequestLine, Headers, Body, _State) -> gen_web_server:http_reply(200).
+other_methods(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
 
 %%%===================================================================
 %%% Internal functions

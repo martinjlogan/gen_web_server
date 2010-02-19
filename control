@@ -1,0 +1,6 @@
+{control,"gen_web_server",
+         [{package_owner,"Martin Logan"},
+          {package_owner_email,"martinjlogan@erlware.org"},
+          {categories,["tool","web"]},
+          {description,"A generic web server behaviour good for RESTful web service authoring"}]}.
+
