@@ -5,6 +5,7 @@
    {vsn, "0.1.0"},
    {modules, [gwsu_app,
               gwsu_sup,
+              gwsu_webdav_server,
 	      gwsu_web_server]},
    {registered,[]},
    {applications, [kernel, stdlib, gen_web_server]},

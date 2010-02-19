@@ -60,10 +60,12 @@ init([]) ->
     Shutdown = 2000,
     Type = worker,
 
-    AChild = {gwsu_web_server, {gwsu_web_server, start_link, []},
-	      Restart, Shutdown, Type, [gwsu_web_server]},
+    Children = [{gwsu_web_server, {gwsu_web_server, start_link, []},
+		 Restart, Shutdown, Type, [gwsu_web_server]},
+		{gwsu_webdav_server, {gwsu_webdav_server, start_link, []},
+		 Restart, Shutdown, Type, [gwsu_webdav_server]}],
 
-    {ok, {SupFlags, [AChild]}}.
+    {ok, {SupFlags, Children}}.
 
 %%%===================================================================
 %%% Internal functions
