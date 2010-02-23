@@ -5,3 +5,8 @@ to install run "sinan dist" and then "faxien ir"
 To run run <erlware-root>/bin/gen_web_server this will bind to port 8080
 
 Any questions can be sent to martinjlogan@erlware.org
+
+TODO
+
+Support chunking
+Enable user socket control to allow for ajax and other such implmentations
