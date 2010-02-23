@@ -2,7 +2,7 @@
 %% application.
 {application, gen_web_server_user, 
   [{description, "An application that uses the gen_web_server for test and demonstration purposes"},
-   {vsn, "0.1.0"},
+   {vsn, "0.1.0.0"},
    {modules, [gwsu_app,
               gwsu_sup,
               gwsu_webdav_server,

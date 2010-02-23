@@ -9,7 +9,7 @@
 -module(gen_web_server).
 
 %% API
--export([start_link/3, http_reply/1, http_reply/3]).
+-export([start_link/4, start_link/3, http_reply/1, http_reply/3]).
 
 -export([behaviour_info/1]).
 
@@ -33,11 +33,16 @@ behaviour_info(_Other) ->
 
 %%--------------------------------------------------------------------
 %% @doc Start a new gen_web_server behaviour container.
-%% @spec (Callback, Port, UserArgs) -> {ok, Pid}
+%% @spec (Callback, IP, Port, UserArgs) -> {ok, Pid}
 %% @end
 %%--------------------------------------------------------------------
+start_link(Callback, IP, Port, UserArgs) ->
+    gws_connection_sup:start_link(Callback, IP, Port, UserArgs).
+
+%% @spec start_link(Callback, Port, UserArgs) -> {ok, Pid} | ignore | {error, Error}
+%% @equiv start_link(Callback, DefaultIP, Port, UserArgs)
 start_link(Callback, Port, UserArgs) ->
-    gws_connection_sup:start_link(Callback, Port, UserArgs).
+    start_link(Callback, default_ip, Port, UserArgs).
     
 %%--------------------------------------------------------------------
 %% @doc helper function for creating a very minimally specified
@@ -55,7 +60,7 @@ http_reply(Code, Headers, Body) ->
      Body]).
 
 %% @spec (Code) -> ok
-%% @equiv http_reply(Code, [{"Content-Type", "text/html"}], "") -> ok
+%% @equiv http_reply(Code, [{"Content-Type", "text/html"}], "") 
 http_reply(Code) ->
     http_reply(Code, [{"Content-Type", "text/html"}], "").
 
