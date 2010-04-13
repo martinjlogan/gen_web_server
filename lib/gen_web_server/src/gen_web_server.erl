@@ -52,18 +52,11 @@ start_link(Callback, Port, UserArgs) ->
 %% @spec (Code, Headers, Body) -> ok
 %% @end
 %%--------------------------------------------------------------------
-http_reply(Code, Headers, Body) when is_list(Body) ->
-    http_reply(Code, Headers, list_to_binary(Body));
 http_reply(Code, Headers, Body) ->
     list_to_binary(["HTTP/1.1 ", code_to_code_and_string(Code), "\r\n",
 		    format_headers(Headers),
 		    "Content-Length: ", integer_to_list(size(Body)), 
 		    "\r\n\r\n", Body]).
-%HeadStr = lists:flatten(["HTTP/1.1 ", code_to_code_and_string(Code), "\r\n",
-			     %format_headers(Headers),
-			     %"Content-Length: ", integer_to_list(size(Body)), 
-			     %"\r\n\r\n"]),
-    %list_to_binary([HeadStr, Body]).
 
 %% @spec (Code) -> ok
 %% @equiv http_reply(Code, [{"Content-Type", "text/html"}], "") 
