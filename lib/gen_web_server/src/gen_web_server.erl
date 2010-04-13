@@ -13,6 +13,8 @@
 
 -export([behaviour_info/1]).
 
+-include("eunit.hrl").
+
 behaviour_info(callbacks) ->
     [{init,1},
      {head, 3},
@@ -53,11 +55,15 @@ start_link(Callback, Port, UserArgs) ->
 http_reply(Code, Headers, Body) when is_list(Body) ->
     http_reply(Code, Headers, list_to_binary(Body));
 http_reply(Code, Headers, Body) ->
-    list_to_binary([list_to_binary(lists:flatten(["HTTP/1.1 ", code_to_code_and_string(Code), "\r\n",
-     format_headers(Headers),
-     "Content-Length: ", integer_to_list(size(Body)), 
-     "\r\n\r\n"])),
-     Body]).
+    list_to_binary(["HTTP/1.1 ", code_to_code_and_string(Code), "\r\n",
+		    format_headers(Headers),
+		    "Content-Length: ", integer_to_list(size(Body)), 
+		    "\r\n\r\n", Body]).
+%HeadStr = lists:flatten(["HTTP/1.1 ", code_to_code_and_string(Code), "\r\n",
+			     %format_headers(Headers),
+			     %"Content-Length: ", integer_to_list(size(Body)), 
+			     %"\r\n\r\n"]),
+    %list_to_binary([HeadStr, Body]).
 
 %% @spec (Code) -> ok
 %% @equiv http_reply(Code, [{"Content-Type", "text/html"}], "") 
@@ -143,3 +149,9 @@ code_to_code_and_string(507) -> "507 Insufficient Storage";
 code_to_code_and_string(509) -> "509 Bandwidth Limit Exceeded";
 code_to_code_and_string(510) -> "510 Not Extended";
 code_to_code_and_string(Code) -> Code.
+
+http_reply_test() ->
+    Reply = <<"HTTP/1.1 200 OK\r\nheader: value\r\nContent-Length: 8\r\n\r\nall good">>,
+    ?assertMatch(Reply, http_reply(200, [{"header", "value"}], "all good")),
+    ?assertMatch(Reply, http_reply(200, [{"header", "value"}], <<"all good">>)),
+    ?assertMatch(Reply, http_reply(200, [{"header", "value"}], ["all"," good"])).

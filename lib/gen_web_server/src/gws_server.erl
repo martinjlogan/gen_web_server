@@ -20,7 +20,7 @@
 -define(SERVER, ?MODULE). 
 
 -record(state, {lsock, socket, request_line = <<>>, headers = [], body = <<>>,
-		unparsed = <<>>, content_length, callback, user_state, parent}).
+		unparsed = <<>>, acc = [], content_length, callback, user_state, parent}).
 
 %%%===================================================================
 %%% API
@@ -145,8 +145,8 @@ handle_packet(#state{request_line = <<>>, unparsed = Unparsed} = State) ->
 	Error ->
 	    throw({bad_initial_request_line, Error})
     end;
-handle_packet(#state{headers = [], unparsed = Unparsed} = State) ->
-    case decode_header(Unparsed) of
+handle_packet(#state{headers = [], unparsed = Unparsed, acc = HeaderAcc} = State) ->
+    case decode_header(Unparsed, HeaderAcc) of
 	{ok, NewHeaders, Rest} ->
 	    ContentLength = list_to_integer(header_value_search('Content-Length', NewHeaders, "0")),
 	    NewState = State#state{headers = NewHeaders, % put headers in recieved order
@@ -159,8 +159,8 @@ handle_packet(#state{headers = [], unparsed = Unparsed} = State) ->
 		    handle_continue(NewState),
 		    handle_packet(NewState)
 	    end;
-	{ok, NewHeaders} ->
-	    NewState = State#state{unparsed = NewHeaders},
+	{more, NewHeaderAcc, Unparsed} ->
+	    NewState = State#state{acc = NewHeaderAcc, unparsed = Unparsed},
 	    inet:setopts(State#state.socket, [{active,once}]),
 	    {noreply, NewState}
     end;
@@ -205,19 +205,17 @@ handle_message(RequestLine, Headers, Body, CallBack, UserState) ->
     CallBack:other_methods(RequestLine, Headers, Body, UserState).
 
 
-decode_header([Unparsed|Parsed] = Headers) ->
+decode_header(Unparsed, Acc) ->
     case erlang:decode_packet(httph, Unparsed, []) of
 	{ok, http_eoh, Rest} ->
-	    {ok, lists:reverse(Parsed), Rest};
+	    {ok, lists:reverse(Acc), Rest};
 	{more, _} ->
-	    {ok, Headers};
+	    {more, Acc, Unparsed};
 	{ok, {_, _, Name, _, Value}, Rest} ->
-	    decode_header([Rest, {Name, Value}|Parsed]);
+	    decode_header(Rest, [{Name, Value}|Acc]);
 	{error, Reason} ->
 	    throw({bad_header, Reason})
-    end;
-decode_header(Unparsed) ->
-    decode_header([Unparsed]).
+    end.
 
 header_value_search(Key, List, Default) ->
     case lists:keysearch(Key, 1, List) of
