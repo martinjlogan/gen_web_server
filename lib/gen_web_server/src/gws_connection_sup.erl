@@ -78,10 +78,10 @@ init([Callback, IP, Port, UserArgs]) ->
     case IP of
 	default_ip -> 
 	    error_logger:info_msg("Start connection supervisor with ~p ~p ~p~n", [Port, Callback, UserArgs]),
-	    {ok, LSock} = gen_tcp:listen(Port, [binary, {active, false}, {packet, raw}, {reuseaddr, true}]);
+	    {ok, LSock} = gen_tcp:listen(Port, [binary, {active, false}, {packet, http_bin}, {reuseaddr, true}]);
 	IP ->
 	    error_logger:info_msg("Start connection supervisor with ~p ~p ~p ~p~n", [IP, Port, Callback, UserArgs]),
-	    {ok, LSock} = gen_tcp:listen(Port, [binary, {active, false}, {packet, raw}, {reuseaddr, true}, {ip, IP}])
+	    {ok, LSock} = gen_tcp:listen(Port, [binary, {active, false}, {packet, http_bin}, {reuseaddr, true}, {ip, IP}])
     end,
 
     WebSocket = {gws_server, {gws_server, start_link, [Callback, LSock, UserArgs]},

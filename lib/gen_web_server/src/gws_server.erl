@@ -19,8 +19,8 @@
 
 -define(SERVER, ?MODULE). 
 
--record(state, {lsock, socket, request_line = <<>>, headers = [], body = <<>>,
-		unparsed = <<>>, acc = [], content_length, callback, user_state, parent}).
+-record(state, {lsock, socket, request_line, headers = [], body = <<>>,
+		content_remaining = 0, callback, user_state, parent}).
 
 %%%===================================================================
 %%% API
@@ -52,6 +52,7 @@ start_link(Callback, LSock, UserArgs) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Callback, LSock, UserArgs, Parent]) ->
+    error_logger:info_msg("in init calling to ~p~n", [Callback]),
     {ok, UserState} = Callback:init(UserArgs),
     {ok, #state{lsock = LSock, callback = Callback, user_state = UserState, parent = Parent}, 0}.
 
@@ -96,8 +97,42 @@ handle_cast(_Request, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info({tcp, _Socket, Packet}, #state{unparsed = Unparsed} = State) ->
-    handle_packet(State#state{unparsed = list_to_binary([Unparsed, Packet])});
+handle_info({http, _Socket, {http_header, _Length, <<"Expect">>, _, <<"100-continue">>}}, #state{headers = Headers} = State) ->
+    gen_tcp:send(State#state.socket, gen_web_server:http_reply(100)),
+    inet:setopts(State#state.socket, [{active,once}]),
+    {noreply, State#state{headers = [{'Expect', <<"100-continue">>}|Headers]}};
+handle_info({http, _Socket, {http_header, _Length, 'Content-Length', _, Value}}, #state{headers = Headers} = State) ->
+    ContentRemaining = list_to_integer(binary_to_list(Value)),
+    inet:setopts(State#state.socket, [{active,once}]),
+    {noreply, State#state{headers = [{'Content-Length', Value}|Headers], content_remaining = ContentRemaining}};
+handle_info({http, _Socket, {http_header, _Length, Key, _, Value}}, #state{headers = Headers} = State) ->
+    inet:setopts(State#state.socket, [{active,once}]),
+    {noreply, State#state{headers = [{Key, Value}|Headers]}};
+handle_info({http, _Socket, {http_request, _Method, _Path, _HTTPVersion} = RequestLine}, State) ->
+    inet:setopts(State#state.socket, [{active,once}]),
+    {noreply, State#state{request_line = RequestLine}};
+handle_info({http, _Socket, http_eoh}, #state{content_remaining = 0} = State) ->
+    Reply = callback(State),
+    gen_tcp:send(State#state.socket, Reply),
+    {stop, normal, State};
+handle_info({http, _Socket, http_eoh}, State) ->
+    inet:setopts(State#state.socket, [{active,once}, {packet, raw}]),
+    {noreply, State};
+handle_info({tcp, _Socket, Packet}, State) ->
+    PacketSize       = byte_size(Packet),
+    ContentRemaining = State#state.content_remaining - PacketSize,
+    Body             = list_to_binary([State#state.body, Packet]),
+    io:format("payload ~p~n", [Packet]),
+    NewState = State#state{body = Body, content_remaining = ContentRemaining},
+    case ContentRemaining of
+	0 ->
+	    Reply = callback(NewState),
+	    gen_tcp:send(State#state.socket, Reply),
+	    {stop, normal, State};
+	ContentLeftOver when ContentLeftOver > 0 ->
+	    inet:setopts(State#state.socket, [{active,once}]),
+	    {noreply, NewState}
+    end;
 handle_info({tcp_closed, _Socket}, State) ->
     {stop, normal, State};
 handle_info(timeout, #state{lsock = LSock, parent = Parent} = State) ->
@@ -134,55 +169,13 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-handle_packet(#state{request_line = <<>>, unparsed = Unparsed} = State) ->
-    case erlang:decode_packet(http, Unparsed, []) of
-	{more, _} ->
-	    inet:setopts(State#state.socket, [{active,once}]),
-	    {noreply, State};
-	{ok, RequestLine, Rest} ->
-	    NewState = State#state{request_line = RequestLine, unparsed = Rest},
-	    handle_packet(NewState);
-	Error ->
-	    throw({bad_initial_request_line, Error})
-    end;
-handle_packet(#state{headers = [], unparsed = Unparsed, acc = HeaderAcc} = State) ->
-    case decode_header(Unparsed, HeaderAcc) of
-	{ok, NewHeaders, Rest} ->
-	    ContentLength = list_to_integer(header_value_search('Content-Length', NewHeaders, "0")),
-	    NewState = State#state{headers = NewHeaders, % put headers in recieved order
-				   unparsed = Rest,
-				   content_length = ContentLength},
-	    case ContentLength of
-		0 ->
-		    reply(NewState);
-		ContentLength ->
-		    handle_continue(NewState),
-		    handle_packet(NewState)
-	    end;
-	{more, NewHeaderAcc, Unparsed} ->
-	    NewState = State#state{acc = NewHeaderAcc, unparsed = Unparsed},
-	    inet:setopts(State#state.socket, [{active,once}]),
-	    {noreply, NewState}
-    end;
-handle_packet(#state{unparsed = Unparsed, content_length = ContentLength} = State) ->
-    case ContentLength - byte_size(Unparsed) of
-	0 ->
-	    reply(State#state{body = Unparsed});
-	ContentLeftOver when ContentLeftOver > 0 ->
-	    inet:setopts(State#state.socket, [{active,once}]),
-	    {noreply, State}
-    end.
-    
-reply(State) -> 
-    #state{socket       = Socket,
-	   callback     = Callback,
+callback(State) -> 
+    #state{callback     = Callback,
 	   request_line = RequestLine,
 	   headers      = Headers,
 	   body         = Body,
 	   user_state   = UserState} = State,
-    Reply = handle_message(RequestLine, Headers, Body, Callback, UserState),
-    gen_tcp:send(Socket, Reply),
-    {stop, normal, State}.
+    handle_message(RequestLine, Headers, Body, Callback, UserState).
 
 handle_message({http_request, 'GET', _, _} = RequestLine, Headers, _Body, CallBack, UserState) ->
     CallBack:get(RequestLine, Headers, UserState);
@@ -203,32 +196,4 @@ handle_message({http_request, 'OPTIONS', _, _} = RequestLine, Headers, Body, Cal
     CallBack:options(RequestLine, Headers, Body, UserState);
 handle_message(RequestLine, Headers, Body, CallBack, UserState) ->
     CallBack:other_methods(RequestLine, Headers, Body, UserState).
-
-
-decode_header(Unparsed, Acc) ->
-    case erlang:decode_packet(httph, Unparsed, []) of
-	{ok, http_eoh, Rest} ->
-	    {ok, lists:reverse(Acc), Rest};
-	{more, _} ->
-	    {more, Acc, Unparsed};
-	{ok, {_, _, Name, _, Value}, Rest} ->
-	    decode_header(Rest, [{Name, Value}|Acc]);
-	{error, Reason} ->
-	    throw({bad_header, Reason})
-    end.
-
-header_value_search(Key, List, Default) ->
-    case lists:keysearch(Key, 1, List) of
-	{value, {Key, Value}} -> Value;
-	false                 -> Default
-    end.
-
-%% @private
-%% @doc send a 100 continue packet if the client expects it
-%% @end
-handle_continue(#state{socket = Socket, headers = Headers}) ->
-    case lists:keymember("100-continue", 2, Headers) of
-	true  -> gen_tcp:send(Socket, gen_web_server:http_reply(100));
-	false -> ok
-    end.
 

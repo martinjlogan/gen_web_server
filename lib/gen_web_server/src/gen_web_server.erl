@@ -52,6 +52,8 @@ start_link(Callback, Port, UserArgs) ->
 %% @spec (Code, Headers, Body) -> ok
 %% @end
 %%--------------------------------------------------------------------
+http_reply(Code, Headers, Body) when is_list(Body) ->
+    http_reply(Code, Headers, list_to_binary(Body));
 http_reply(Code, Headers, Body) ->
     list_to_binary(["HTTP/1.1 ", code_to_code_and_string(Code), "\r\n",
 		    format_headers(Headers),
@@ -61,7 +63,7 @@ http_reply(Code, Headers, Body) ->
 %% @spec (Code) -> ok
 %% @equiv http_reply(Code, [{"Content-Type", "text/html"}], "") 
 http_reply(Code) ->
-    http_reply(Code, [{"Content-Type", "text/html"}], "").
+    http_reply(Code, [{"Content-Type", "text/html"}], <<>>).
 
 format_headers([{Header, Value}|T]) ->
     [tos(Header), ": ", Value, "\r\n"|format_headers(T)];
@@ -144,7 +146,9 @@ code_to_code_and_string(510) -> "510 Not Extended";
 code_to_code_and_string(Code) -> Code.
 
 http_reply_test() ->
-    Reply = <<"HTTP/1.1 200 OK\r\nheader: value\r\nContent-Length: 8\r\n\r\nall good">>,
-    ?assertMatch(Reply, http_reply(200, [{"header", "value"}], "all good")),
-    ?assertMatch(Reply, http_reply(200, [{"header", "value"}], <<"all good">>)),
-    ?assertMatch(Reply, http_reply(200, [{"header", "value"}], ["all"," good"])).
+    Reply = <<"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 0\r\n\r\n">>,
+    ?assertMatch(Reply, http_reply(200)),
+    Reply2 = <<"HTTP/1.1 200 OK\r\nheader: value\r\nContent-Length: 8\r\n\r\nall good">>,
+    ?assertMatch(Reply2, http_reply(200, [{"header", "value"}], "all good")),
+    ?assertMatch(Reply2, http_reply(200, [{"header", "value"}], <<"all good">>)),
+    ?assertMatch(Reply2, http_reply(200, [{"header", "value"}], ["all"," good"])).
