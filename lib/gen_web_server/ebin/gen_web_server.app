@@ -2,7 +2,7 @@
 %% application.
 {application, gen_web_server, 
   [{description, "An application containing the gen_web_server behaviour container and interface"},
-   {vsn, "0.1.0.2"},
+   {vsn, "0.2.0.0"},
    {modules, [gen_web_server,
               gws_connection_sup,
               gws_web_dav_util,
