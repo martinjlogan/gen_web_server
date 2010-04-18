@@ -51,7 +51,6 @@ delete(DocumentRoot, AbsPath) ->
 %%--------------------------------------------------------------------
 propfind(DocumentRoot, AbsPath, Host, Depth) ->
     Path = filename:join(DocumentRoot, string:strip(AbsPath, left, $\/)),
-    io:format("path ~p~n", [Path]),
     WildCard = lists:foldl(fun(_Num, Path_) -> Path_ ++ "/*" end, Path, lists:seq(1, Depth)),
     FilePaths = filelib:wildcard(WildCard),
     % returns {TruncatedPath, ReadFileInfo}
