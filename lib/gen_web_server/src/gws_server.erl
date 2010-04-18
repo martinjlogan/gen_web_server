@@ -122,7 +122,6 @@ handle_info({tcp, _Socket, Packet}, State) ->
     PacketSize       = byte_size(Packet),
     ContentRemaining = State#state.content_remaining - PacketSize,
     Body             = list_to_binary([State#state.body, Packet]),
-    io:format("payload ~p~n", [Packet]),
     NewState = State#state{body = Body, content_remaining = ContentRemaining},
     case ContentRemaining of
 	0 ->
