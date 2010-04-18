@@ -23,7 +23,6 @@
 	 post/4,
 	 put/4,
 	 trace/4,
-	 connect/4,
 	 other_methods/4
 	]).
 
@@ -58,7 +57,8 @@ init(DocumentRoot) ->
 %% @spec (RequestLine, Headers, State) -> Response
 %% @end
 %%--------------------------------------------------------------------
-get({http_request, _, {abs_path, AbsPath}, _}, Headers, State) ->
+get({http_request, _, {abs_path, AbsPathBin}, _}, Headers, State) ->
+    AbsPath = binary_to_list(AbsPathBin),
     FilePath = filename:join(State#state.document_root, string:strip(AbsPath, left, $\/)),
     case catch file:read_file(FilePath) of
 	{ok, TarFile} ->
@@ -76,7 +76,8 @@ delete(_RequestLine, _Headers, _State) -> gen_web_server:http_reply(200).
 %% @spec (RequestLine, Headers, Body, State) -> Response
 %% @end
 %%--------------------------------------------------------------------
-put({http_request, _, {abs_path, AbsPath}, _}, _Headers, Body, State) ->
+put({http_request, _, {abs_path, AbsPathBin}, _}, _Headers, Body, State) ->
+    AbsPath = binary_to_list(AbsPathBin),
     To = filename:join(State#state.document_root, string:strip(AbsPath, left, $\/)),
     case catch write_data(Body, To) of
 	ok ->
@@ -87,16 +88,16 @@ put({http_request, _, {abs_path, AbsPath}, _}, _Headers, Body, State) ->
 trace(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
 post(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
 options(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
-connect(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
 
 %%--------------------------------------------------------------------
 %% @doc
 %% @spec (RequestLine, Headers, Body) -> Response
 %% @end
 %%--------------------------------------------------------------------
-other_methods({http_request, "PROPFIND", {abs_path, AbsPath}, _}, Headers, _Body, State) ->
+other_methods({http_request, <<"PROPFIND">>, {abs_path, AbsPathBin}, _}, Headers, _Body, State) ->
+    AbsPath = binary_to_list(AbsPathBin),
     {value, {'Host', Host}} = lists:keysearch('Host', 1, Headers),
-    case gws_web_dav_util:propfind(State#state.document_root, AbsPath, Host, 1) of
+    case gws_web_dav_util:propfind(State#state.document_root, AbsPath, binary_to_list(Host), 1) of
 	error -> 
 	    gen_web_server:http_reply(404);
 	Resp -> 
@@ -105,7 +106,8 @@ other_methods({http_request, "PROPFIND", {abs_path, AbsPath}, _}, Headers, _Body
 	    error_logger:info_msg("response to propfind ~p~n", [WebResp]),
 	    WebResp
     end;
-other_methods({http_request, "MKCOL", {abs_path, AbsPath}, _}, _Headers, _Body, State) ->
+other_methods({http_request, <<"MKCOL">>, {abs_path, AbsPathBin}, _}, _Headers, _Body, State) ->
+    AbsPath = binary_to_list(AbsPathBin),
     gws_web_dav_util:mkcol(State#state.document_root, AbsPath),
     gen_web_server:http_reply(201);
 other_methods(RequestLine, Headers, Body, _State) ->
