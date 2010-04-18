@@ -176,22 +176,20 @@ callback(State) ->
 	   user_state   = UserState} = State,
     handle_message(RequestLine, Headers, Body, Callback, UserState).
 
-handle_message({http_request, <<"GET">>, _, _} = RequestLine, Headers, _Body, CallBack, UserState) ->
+handle_message({http_request, 'GET', _, _} = RequestLine, Headers, _Body, CallBack, UserState) ->
     CallBack:get(RequestLine, Headers, UserState);
-handle_message({http_request, <<"DELETE">>, _, _} = RequestLine, Headers, _Body, CallBack, UserState) ->
+handle_message({http_request, 'DELETE', _, _} = RequestLine, Headers, _Body, CallBack, UserState) ->
     CallBack:delete(RequestLine, Headers, UserState);
-handle_message({http_request, <<"HEAD">>, _, _} = RequestLine, Headers, _Body, CallBack, UserState) ->
+handle_message({http_request, 'HEAD', _, _} = RequestLine, Headers, _Body, CallBack, UserState) ->
     CallBack:head(RequestLine, Headers, UserState);
 
-handle_message({http_request, <<"POST">>, _, _} = RequestLine, Headers, Body, CallBack, UserState) ->
+handle_message({http_request, 'POST', _, _} = RequestLine, Headers, Body, CallBack, UserState) ->
     CallBack:post(RequestLine, Headers, Body, UserState);
-handle_message({http_request,<<"PUT">>,_,_} = RequestLine, Headers, Body, CallBack, UserState) ->
+handle_message({http_request,'PUT',_,_} = RequestLine, Headers, Body, CallBack, UserState) ->
     CallBack:put(RequestLine, Headers, Body, UserState);
-handle_message({http_request, <<"TRACE">>, _, _} = RequestLine, Headers, Body, CallBack, UserState) ->
+handle_message({http_request, 'TRACE', _, _} = RequestLine, Headers, Body, CallBack, UserState) ->
     CallBack:head(RequestLine, Headers, Body, UserState);
-handle_message({http_request, <<"CONNECT">>, _, _} = RequestLine, Headers, Body, CallBack, UserState) ->
-    CallBack:head(RequestLine, Headers, Body, UserState);
-handle_message({http_request, <<"OPTIONS">>, _, _} = RequestLine, Headers, Body, CallBack, UserState) ->
+handle_message({http_request, 'OPTIONS', _, _} = RequestLine, Headers, Body, CallBack, UserState) ->
     CallBack:options(RequestLine, Headers, Body, UserState);
 handle_message(RequestLine, Headers, Body, CallBack, UserState) ->
     CallBack:other_methods(RequestLine, Headers, Body, UserState).
