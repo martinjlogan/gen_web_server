@@ -12,7 +12,8 @@
 -export([start_link/3]).
 
 -record(state, {lsock, socket, request_line, headers = [], body = <<>>,
-		content_remaining = 0, callback, user_state, parent}).
+		content_remaining = 0, callback, user_state, parent,
+	        connection}).
 
 %%%===================================================================
 %%% API
@@ -46,19 +47,25 @@ accept(#state{lsock = LSock, parent = Parent} = State) ->
 
 collect_request_line(State) ->
     receive
+	{http, _Socket, {http_request, _Method, _Path, {1,1}} = RequestLine} ->
+	    inet:setopts(State#state.socket, [{active,once}]),
+	    collect_headers(State#state{request_line = RequestLine, connection = persistent});
 	{http, _Socket, {http_request, _Method, _Path, _HTTPVersion} = RequestLine} ->
 	    inet:setopts(State#state.socket, [{active,once}]),
-	    collect_headers(State#state{request_line = RequestLine});
+	    collect_headers(State#state{request_line = RequestLine, connection = close});
 	{tcp_closed, _Socket} ->
 	    ok
     end.
 
 collect_headers(#state{headers = Headers} = State) ->
     receive
-	{http, _Socket, {http_header, _Length, <<"Expect">>, _, <<"100-continue">>}} ->
+	{http, _Socket, {http_header, _Length, 'Connection', _, <<"close">>}} ->
+	    inet:setopts(State#state.socket, [{active,once}]),
+	    collect_headers(State#state{headers = [{'Connection', <<"close">>}|Headers], connection = close});
+	{http, _Socket, {http_header, _Length, Value, _, <<"100-continue">>}} ->
 	    gen_tcp:send(State#state.socket, gen_web_server:http_reply(100)),
 	    inet:setopts(State#state.socket, [{active,once}]),
-	    collect_headers(State#state{headers = [{'Expect', <<"100-continue">>}|Headers]});
+	    collect_headers(State#state{headers = [{Value, <<"100-continue">>}|Headers]});
 	{http, _Socket, {http_header, _Length, 'Content-Length', _, Value}} ->
 	    ContentRemaining = list_to_integer(binary_to_list(Value)),
 	    inet:setopts(State#state.socket, [{active,once}]),
@@ -66,6 +73,11 @@ collect_headers(#state{headers = Headers} = State) ->
 	{http, _Socket, {http_header, _Length, Key, _, Value}} ->
 	    inet:setopts(State#state.socket, [{active,once}]),
 	    collect_headers(State#state{headers = [{Key, Value}|Headers]});
+	{http, _Socket, http_eoh} when State#state.content_remaining == 0, State#state.connection == persistent ->
+	    Reply = callback(State),
+	    gen_tcp:send(State#state.socket, Reply),
+	    NewState = State#state{request_line = undefined, headers = [], body = <<>>},
+	    collect_request_line(NewState);
 	{http, _Socket, http_eoh} when State#state.content_remaining == 0 ->
 	    Reply = callback(State),
 	    gen_tcp:send(State#state.socket, Reply);
@@ -84,6 +96,11 @@ collect_body(State) ->
 	    Body             = list_to_binary([State#state.body, Packet]),
 	    NewState = State#state{body = Body, content_remaining = ContentRemaining},
 	    case ContentRemaining of
+		0 when NewState#state.connection == persistent ->
+		    Reply = callback(NewState),
+		    gen_tcp:send(State#state.socket, Reply),
+		    FreshState = NewState#state{request_line = undefined, headers = [], body = <<>>},
+		    collect_request_line(FreshState);
 		0 ->
 		    Reply = callback(NewState),
 		    gen_tcp:send(State#state.socket, Reply);
