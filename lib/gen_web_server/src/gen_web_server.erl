@@ -24,7 +24,8 @@ behaviour_info(callbacks) ->
      {post, 4},
      {put, 4},
      {trace, 4},
-     {other_methods, 4}];
+     {other_methods, 4},
+     {terminate, 1}];
 behaviour_info(_Other) ->
     undefined.
 

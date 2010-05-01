@@ -11,7 +11,7 @@
 %% API
 -export([start_link/3]).
 
--record(state, {lsock, socket, request_line, headers = [], body = <<>>,
+-record(state, {lsock, socket, request_line, headers = [], body = [],
 		content_remaining = 0, callback, user_state, parent,
 	        connection}).
 
@@ -73,14 +73,8 @@ collect_headers(#state{headers = Headers} = State) ->
 	{http, _Socket, {http_header, _Length, Key, _, Value}} ->
 	    inet:setopts(State#state.socket, [{active,once}]),
 	    collect_headers(State#state{headers = [{Key, Value}|Headers]});
-	{http, _Socket, http_eoh} when State#state.content_remaining == 0, State#state.connection == persistent ->
-	    Reply = callback(State),
-	    gen_tcp:send(State#state.socket, Reply),
-	    NewState = State#state{request_line = undefined, headers = [], body = <<>>},
-	    collect_request_line(NewState);
 	{http, _Socket, http_eoh} when State#state.content_remaining == 0 ->
-	    Reply = callback(State),
-	    gen_tcp:send(State#state.socket, Reply);
+	    handle_complete_packet(State);
 	{http, _Socket, http_eoh} ->
 	    inet:setopts(State#state.socket, [{active,once}, {packet, raw}]),
 	    collect_body(State);
@@ -91,19 +85,12 @@ collect_headers(#state{headers = Headers} = State) ->
 collect_body(State) ->
     receive
 	{tcp, _Socket, Packet} ->
-	    PacketSize       = byte_size(Packet),
-	    ContentRemaining = State#state.content_remaining - PacketSize,
-	    Body             = list_to_binary([State#state.body, Packet]),
+	    ContentRemaining = State#state.content_remaining - byte_size(Packet),
+	    Body             = [Packet|State#state.body],
 	    NewState = State#state{body = Body, content_remaining = ContentRemaining},
 	    case ContentRemaining of
-		0 when NewState#state.connection == persistent ->
-		    Reply = callback(NewState),
-		    gen_tcp:send(State#state.socket, Reply),
-		    FreshState = NewState#state{request_line = undefined, headers = [], body = <<>>},
-		    collect_request_line(FreshState);
 		0 ->
-		    Reply = callback(NewState),
-		    gen_tcp:send(State#state.socket, Reply);
+		    handle_complete_packet(NewState);
 		ContentLeftOver when ContentLeftOver > 0 ->
 		    inet:setopts(State#state.socket, [{active,once}]),
 		    collect_body(NewState)
@@ -111,6 +98,29 @@ collect_body(State) ->
 	{tcp_closed, _Socket} ->
 	    ok
     end.
+
+handle_complete_packet(#state{body = Body} = State) when State#state.connection == persistent ->
+    % catch and handle the callback code and send errors to terminate
+    {Disposition, Reply, NewUserState} = callback(State#state{body = list_to_binary(lists:reverse(Body))}),
+    NewState = State#state{user_state = NewUserState,
+			   request_line = undefined,
+			   headers = [],
+			   body = []},
+    case Disposition of
+	ok ->
+	    gen_tcp:send(State#state.socket, Reply),
+	    collect_request_line(NewState);
+	stop  -> 
+	    gen_tcp:send(State#state.socket, Reply),
+	    terminate(NewState)
+    end;
+handle_complete_packet(#state{body = Body} = State) ->
+    % Close the connection no matter what if the connection is not persistent
+    {_Disposition, Reply, NewUserState} = callback(State#state{body = list_to_binary(lists:reverse(Body))}),
+    gen_tcp:send(State#state.socket, Reply),
+    % We always terminate with a non persistent connection
+    terminate(State#state{user_state = NewUserState}).
+    
 
 callback(State) -> 
     #state{callback     = Callback,
@@ -137,4 +147,9 @@ handle_message({http_request, 'OPTIONS', _, _} = RequestLine, Headers, Body, Cal
     CallBack:options(RequestLine, Headers, Body, UserState);
 handle_message(RequestLine, Headers, Body, CallBack, UserState) ->
     CallBack:other_methods(RequestLine, Headers, Body, UserState).
+
+terminate(State) -> 
+    #state{callback   = Callback,
+	   user_state = UserState} = State,
+    Callback:terminate(UserState).
 
