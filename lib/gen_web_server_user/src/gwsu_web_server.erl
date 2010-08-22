@@ -57,25 +57,25 @@ init(DocumentRoot) ->
 %% @spec (RequestLine, Headers) -> Response
 %% @end
 %%--------------------------------------------------------------------
-get(_RequestLine, Headers, _State) ->
+get(_RequestLine, Headers, State) ->
     Body = "<h2>Welcome to the gen_web_server</h2>"
            "<p>Docs can be found at erlware.org or by"
            " generating edocs on the app</p>",
-    gen_web_server:http_reply(200, Headers, Body).
+    {stop, gen_web_server:http_reply(200, Headers, Body), State}.
 
-head(_RequestLine, _Headers, _State) -> gen_web_server:http_reply(200).
-delete(_RequestLine, _Headers, _State) -> gen_web_server:http_reply(200).
+head(_RequestLine, _Headers, _State) -> {stop, gen_web_server:http_reply(200), []}.
+delete(_RequestLine, _Headers, _State) -> {gen_web_server:http_reply(200), []}.
 
 %%--------------------------------------------------------------------
 %% @doc
 %% @spec (RequestLine, Headers, Body, State) -> Response
 %% @end
 %%--------------------------------------------------------------------
-put(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
-trace(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
-post(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
-options(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
-other_methods(_RequestLine, _Headers, _Body, _State) -> gen_web_server:http_reply(200).
+put(_RequestLine, _Headers, _Body, _State) -> {stop, gen_web_server:http_reply(200), []}.
+trace(_RequestLine, _Headers, _Body, _State) -> {stop, gen_web_server:http_reply(200), []}.
+post(_RequestLine, _Headers, _Body, _State) -> {stop, gen_web_server:http_reply(200), []}.
+options(_RequestLine, _Headers, _Body, _State) -> {stop, gen_web_server:http_reply(200), []}.
+other_methods(_RequestLine, _Headers, _Body, _State) -> {stop, gen_web_server:http_reply(200), []}.
 
 %%%===================================================================
 %%% Internal functions
